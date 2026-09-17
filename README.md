@@ -62,7 +62,7 @@ Make sure you have the following installed on your machine:
 3. **Configure Environment Variables**:
    Create a `.env` file in the `backend/` directory if custom secrets or LLM keys are needed:
    ```env
-   PORT=8000
+   PORT=5000
    HOST=0.0.0.0
    ```
 
