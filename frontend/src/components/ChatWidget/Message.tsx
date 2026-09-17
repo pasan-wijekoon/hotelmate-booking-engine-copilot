@@ -4,7 +4,12 @@ import type { Message as MessageT } from './types'
 // Lazy-load the syntax highlighter so the initial bundle stays small.
 const MarkdownView = lazy(() => import('./MarkdownView'))
 
-export function Message({ message }: { message: MessageT }) {
+type Props = {
+  message: MessageT
+  onRetry?: () => void
+}
+
+export function Message({ message, onRetry }: Props) {
   switch (message.role) {
     case 'user':
       return (
@@ -48,7 +53,18 @@ export function Message({ message }: { message: MessageT }) {
               </svg>
               <span>Error</span>
             </div>
-            <div className="chat-widget__error-text">{message.content}</div>
+            <div className="chat-widget__error-text">
+              {message.content}
+              {onRetry && (
+                <button
+                  type="button"
+                  className="chat-widget__retry-btn"
+                  onClick={onRetry}
+                >
+                  Retry
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )

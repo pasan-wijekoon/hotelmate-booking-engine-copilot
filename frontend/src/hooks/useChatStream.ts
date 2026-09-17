@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { fetchAiResponse } from '../lib/api'
+import { fetchAiResponse, getErrorMessage } from '../lib/api'
 
 /**
  * Chat response hook. Holds an internal AbortController so callers can stop
@@ -32,21 +32,37 @@ export function useChatStream(apiUrl: string, timeoutMs?: number) {
       setStreaming(true)
 
       try {
-        const full = await fetchAiResponse(params.prompt, {
+        const body = await fetchAiResponse(params.prompt, {
           apiUrl,
           timeoutMs,
           signal: controller.signal,
         })
-        if (params.onDelta) {
-          params.onDelta(full)
+
+        const reader = body.getReader()
+        const decoder = new TextDecoder()
+        let assembled = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value, { stream: true })
+          assembled += chunk
+          if (params.onDelta) {
+            params.onDelta(assembled)
+          }
         }
-        return full
-      } catch (err) {
+
+        return assembled
+      } catch (err: any) {
         if (userStoppedRef.current) {
           // User-initiated abort — silent
           return ''
         }
-        const msg = err instanceof Error ? err.message : 'Request failed'
+
+        // Now that fetchAiResponse handles mapping timeouts to ApiError,
+        // any remaining AbortError here is likely an unexpected system abort.
+        const msg = getErrorMessage(err)
         setError(msg)
         throw err
       } finally {

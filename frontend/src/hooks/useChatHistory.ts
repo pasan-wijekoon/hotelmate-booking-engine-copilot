@@ -96,26 +96,29 @@ function saveSessionsToStorage(sessions: ChatSession[], activeId: string): void 
   }
 }
 
+type SessionsState = {
+  sessions: ChatSession[]
+  activeSessionId: string
+}
+
 /**
  * Manages multiple chat sessions, auto-saves to localStorage,
  * supports creating, switching, and deleting conversations.
  */
 export function useChatSessions() {
-  const [initialData] = useState(() => loadSessionsFromStorage())
-  const [sessions, setSessions] = useState<ChatSession[]>(initialData.sessions)
-  const [activeSessionId, setActiveSessionId] = useState<string>(initialData.activeId)
-
+  const [state, setState] = useState<SessionsState>(() => loadSessionsFromStorage())
   const hasMountedRef = useRef(false)
 
-  // Persist sessions whenever sessions or activeSessionId changes (skip first render)
+  // Persist sessions whenever state changes (skip first render)
   useEffect(() => {
     if (!hasMountedRef.current) {
       hasMountedRef.current = true
       return
     }
-    saveSessionsToStorage(sessions, activeSessionId)
-  }, [sessions, activeSessionId])
+    saveSessionsToStorage(state.sessions, state.activeSessionId)
+  }, [state])
 
+  const { sessions, activeSessionId } = state
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? sessions[0]
 
   const createSession = useCallback((): ChatSession => {
@@ -126,18 +129,20 @@ export function useChatSessions() {
       updatedAt: Date.now(),
       messages: [],
     }
-    setSessions((prev) => [newSession, ...prev])
-    setActiveSessionId(newSession.id)
+    setState((prev) => ({
+      sessions: [newSession, ...prev.sessions],
+      activeSessionId: newSession.id,
+    }))
     return newSession
   }, [])
 
   const switchSession = useCallback((id: string) => {
-    setActiveSessionId(id)
+    setState((prev) => ({ ...prev, activeSessionId: id }))
   }, [])
 
   const deleteSession = useCallback((id: string) => {
-    setSessions((prev) => {
-      const filtered = prev.filter((s) => s.id !== id)
+    setState((prev) => {
+      const filtered = prev.sessions.filter((s) => s.id !== id)
       if (filtered.length === 0) {
         const fresh: ChatSession = {
           id: newSessionId(),
@@ -146,44 +151,50 @@ export function useChatSessions() {
           updatedAt: Date.now(),
           messages: [],
         }
-        setActiveSessionId(fresh.id)
-        return [fresh]
+        return {
+          sessions: [fresh],
+          activeSessionId: fresh.id,
+        }
       }
-      return filtered
-    })
 
-    setActiveSessionId((currentActiveId) => {
-      if (currentActiveId === id) {
-        const remaining = sessions.filter((s) => s.id !== id)
-        return remaining[0]?.id ?? newSessionId()
+      const nextActiveId = prev.activeSessionId === id
+        ? filtered[0].id
+        : prev.activeSessionId
+
+      return {
+        sessions: filtered,
+        activeSessionId: nextActiveId,
       }
-      return currentActiveId
     })
-  }, [sessions])
+  }, [])
 
   const updateActiveMessages = useCallback(
-    (messages: Message[]) => {
-      setSessions((prev) =>
-        prev.map((session) => {
-          if (session.id !== activeSessionId) return session
-          const title =
-            session.title === 'New Conversation' || session.messages.length <= 1
-              ? deriveTitle(messages)
-              : session.title
-          return {
-            ...session,
-            title,
-            updatedAt: Date.now(),
-            messages,
-          }
-        }),
-      )
+    (updateFn: (prevMessages: Message[]) => Message[]) => {
+      setState((prev) => {
+        return {
+          ...prev,
+          sessions: prev.sessions.map((session) => {
+            if (session.id !== prev.activeSessionId) return session
+            const messages = updateFn(session.messages)
+            const title =
+              session.title === 'New Conversation' || session.messages.length <= 1
+                ? deriveTitle(messages)
+                : session.title
+            return {
+              ...session,
+              title,
+              updatedAt: Date.now(),
+              messages,
+            }
+          }),
+        }
+      })
     },
-    [activeSessionId],
+    [],
   )
 
   const clearCurrentSession = useCallback(() => {
-    updateActiveMessages([])
+    updateActiveMessages(() => [])
   }, [updateActiveMessages])
 
   const clearAllSessions = useCallback(() => {
@@ -194,8 +205,10 @@ export function useChatSessions() {
       updatedAt: Date.now(),
       messages: [],
     }
-    setSessions([fresh])
-    setActiveSessionId(fresh.id)
+    setState({
+      sessions: [fresh],
+      activeSessionId: fresh.id,
+    })
     try {
       localStorage.removeItem(SESSIONS_STORAGE_KEY)
       localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)

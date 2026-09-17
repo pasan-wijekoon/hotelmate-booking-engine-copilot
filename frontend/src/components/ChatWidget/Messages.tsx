@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from 'react'
 import type { Message as MessageT } from './types'
 import { Message } from './Message'
@@ -9,11 +8,13 @@ type Props = {
   messages: MessageT[]
   streaming: boolean
   onSelectSuggestion: (text: string) => Promise<void>
+  onRetry?: (messageId: string) => void
 }
 
 export function Messages({
   messages,
   streaming,
+  onRetry,
 }: Props) {
   // Show typing indicator only while streaming
   // and the last message is from the user.
@@ -43,8 +44,6 @@ export function Messages({
     }
   }, [ref])
 
- 
-
   return (
     <div
       className="chat-widget__messages"
@@ -66,8 +65,6 @@ export function Messages({
           <p className="chat-widget__welcome-desc">
             How can we make your stay more comfortable today?
           </p>
-
-         
         </div>
       )}
 
@@ -75,6 +72,7 @@ export function Messages({
         <Message
           key={message.id}
           message={message}
+          onRetry={() => message.id && onRetry?.(message.id)}
         />
       ))}
 

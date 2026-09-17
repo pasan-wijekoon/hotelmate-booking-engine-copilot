@@ -9,6 +9,7 @@ import type { ConnectionStatus, Message } from './types'
 import { loadConfig } from '../../lib/config'
 import { useChatStream } from '../../hooks/useChatStream'
 import { useChatSessions } from '../../hooks/useChatHistory'
+import { getErrorMessage, ApiError } from '../../lib/api'
 import './ChatWidget.css'
 
 function newId(): string {
@@ -78,22 +79,27 @@ function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
 
   const panelWrapRef = useRef<HTMLDivElement | null>(null)
   const launcherWrapRef = useRef<HTMLDivElement | null>(null)
+  const composerRef = useRef<HTMLTextAreaElement | null>(null)
 
   const setOpen = useCallback(
     (open: boolean) => {
       setIsOpen(open)
       if (open) {
         setHasUnread(false)
-        setTimeout(() => {
-          const ta = panelWrapRef.current?.querySelector<HTMLTextAreaElement>(
-            '.chat-widget__textarea',
-          )
-          ta?.focus()
-        }, 200)
       }
     },
     [],
   )
+
+  useEffect(() => {
+    if (isOpen && view === 'chat') {
+      // Focus the textarea after the panel has transitioned into view
+      const timer = setTimeout(() => {
+        composerRef.current?.focus()
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen, view])
 
   useEffect(() => {
     if (!isOpen) return
@@ -138,14 +144,12 @@ function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
       const userMsg: Message = { id: newId(), role: 'user', content: text }
       const assistantId = newId()
 
-      const currentList = messagesRef.current
-      const updatedWithUser = [...currentList, userMsg]
-      const updatedWithPlaceholder = [
-        ...updatedWithUser,
-        { id: assistantId, role: 'assistant', content: '', streaming: true } as Message,
-      ]
-
-      updateActiveMessages(updatedWithPlaceholder)
+      // 1. Append user message and streaming placeholder
+      updateActiveMessages((prev) => [
+        ...prev,
+        userMsg,
+        { id: assistantId, role: 'assistant', content: '', streaming: true },
+      ])
 
       let assembled = ''
       let isError = false
@@ -155,8 +159,8 @@ function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
           prompt: text,
           onDelta: (chunk) => {
             assembled = chunk
-            updateActiveMessages([
-              ...updatedWithUser,
+            updateActiveMessages((prev) => [
+              ...prev.filter((m) => m.id !== assistantId),
               { id: assistantId, role: 'assistant', content: assembled, streaming: true },
             ])
           },
@@ -164,16 +168,10 @@ function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
         setStatus('online')
       } catch (err) {
         isError = true
-        setStatus('offline')
-        let errorMsg =
-          err instanceof Error && err.message
-            ? err.message
-            : `Unable to connect to AI service at ${apiUrl}.`
-        if (errorMsg === 'Failed to fetch' || errorMsg.includes('NetworkError')) {
-          errorMsg = `Connection Failed\nUnable to connect to ${apiUrl}. Please verify that your backend server is running and accessible.`
-        }
-        updateActiveMessages([
-          ...updatedWithUser,
+
+        const errorMsg = getErrorMessage(err)
+        updateActiveMessages((prev) => [
+          ...prev.filter((m) => m.id !== assistantId),
           {
             id: assistantId,
             role: 'error',
@@ -182,8 +180,8 @@ function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
         ])
       } finally {
         if (!isError) {
-          updateActiveMessages([
-            ...updatedWithUser,
+          updateActiveMessages((prev) => [
+            ...prev.filter((m) => m.id !== assistantId),
             { id: assistantId, role: 'assistant', content: assembled, streaming: false },
           ])
         }
@@ -191,6 +189,27 @@ function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
       }
     },
     [ready, stream, isOpen, apiUrl, updateActiveMessages],
+  )
+
+  const handleRetry = useCallback(
+    (messageId: string) => {
+      const currentMessages = messagesRef.current
+      const errorIdx = currentMessages.findIndex((m) => m.id === messageId)
+      if (errorIdx === -1) return
+
+      // Find the closest preceding user message
+      let prompt = ''
+      for (let i = errorIdx - 1; i >= 0; i--) {
+        if (currentMessages[i].role === 'user') {
+          prompt = currentMessages[i].content
+          break
+        }
+      }
+
+      if (!prompt) return
+      handleSend(prompt)
+    },
+    [handleSend],
   )
 
   const handleNewChat = useCallback(() => {
@@ -240,8 +259,10 @@ function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
                 messages={messages}
                 streaming={streaming}
                 onSelectSuggestion={handleSend}
+                onRetry={handleRetry}
               />
               <Composer
+                ref={composerRef}
                 disabled={composerDisabled}
                 streaming={streaming}
                 onSend={handleSend}
