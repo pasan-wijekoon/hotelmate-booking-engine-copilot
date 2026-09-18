@@ -35,18 +35,7 @@ export function Message({ message, onRetry }: Props) {
     case 'error':
       return (
         <div className="chat-widget__row chat-widget__row--bot">
-          <div
-            className="chat-widget__msg chat-widget__msg--bot chat-widget__msg--error"
-            onClick={onRetry}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                onRetry?.()
-              }
-            }}
-            role="button"
-            tabIndex={onRetry ? 0 : -1}
-          >
+          <div className="chat-widget__msg chat-widget__msg--bot chat-widget__msg--error">
             <div className="chat-widget__error-badge">
               <svg
                 className="chat-widget__error-icon"
@@ -66,12 +55,16 @@ export function Message({ message, onRetry }: Props) {
             </div>
             <div className="chat-widget__error-text">
               {message.content}
-              {onRetry && (
-                <span className="chat-widget__retry-btn">
-                  Retry
-                </span>
-              )}
             </div>
+            {onRetry && (
+              <button
+                type="button"
+                className="chat-widget__retry-btn"
+                onClick={onRetry}
+              >
+                Retry
+              </button>
+            )}
           </div>
         </div>
       )

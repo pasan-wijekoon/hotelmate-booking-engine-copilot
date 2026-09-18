@@ -420,17 +420,6 @@
   flex-direction: column;
   gap: 6px;
   max-width: 88%;
-  cursor: pointer;
-  transition: background-color .12s ease, border-color .12s ease, transform .1s ease;
-}
-
-.chat-widget__msg--error:hover {
-  background: #fee2e2 !important;
-  border-color: #fca5a5 !important;
-}
-
-.chat-widget__msg--error:active {
-  transform: scale(0.99);
 }
 
 .chat-widget__error-badge {
@@ -473,7 +462,6 @@
   font-weight: 500;
   cursor: pointer;
   transition: background-color .12s ease, color .12s ease, transform .1s ease;
-  margin-top: 4px;
 }
 
 .chat-widget__retry-btn:hover {
