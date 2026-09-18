@@ -53,16 +53,7 @@ export function ConversationsList({
 
   return (
     <div className="chat-widget__sessions-list">
-      <div className="chat-widget__sessions-header">
-        <button
-          type="button"
-          className="chat-widget__new-chat-btn"
-          onClick={onNewSession}
-        >
-          <PlusIcon size={16} />
-          <span>New conversation</span>
-        </button>
-      </div>
+      <div className="chat-widget__sessions-header"></div>
 
       <div className="chat-widget__sessions-scroll">
         {sessions.length === 0 ? (
