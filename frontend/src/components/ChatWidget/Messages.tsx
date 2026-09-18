@@ -49,25 +49,6 @@ export function Messages({
       className="chat-widget__messages"
       ref={ref}
     >
-      {messages.length === 0 && (
-        <div className="chat-widget__welcome-card">
-          <div className="chat-widget__welcome-avatar">
-            <img
-              src="/favicon.png"
-              alt="HotelMate"
-            />
-          </div>
-
-          <h2 className="chat-widget__welcome-title">
-            Welcome to Hotel ABC
-          </h2>
-
-          <p className="chat-widget__welcome-desc">
-            How can we make your stay more comfortable today?
-          </p>
-        </div>
-      )}
-
       {messages.map((message) => (
         <Message
           key={message.id}

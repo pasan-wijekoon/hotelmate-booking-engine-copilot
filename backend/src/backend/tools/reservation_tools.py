@@ -23,7 +23,7 @@ def _parse_date(value: str) -> Optional[date]:
     return None
 
 
-def get_current_d2(session_id: str = "default-session"):
+def get_current_d2(session_id: Optional[str] = None):
     return session_store.get_or_create(session_id).d2_reservation
 
 

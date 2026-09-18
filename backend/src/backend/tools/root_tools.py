@@ -7,7 +7,7 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _PHONE_RE = re.compile(r"^\+?[0-9()\-\s]{7,20}$")
 
 
-def get_current_d1(session_id: str = "default-session"):
+def get_current_d1(session_id: Optional[str] = None):
     return session_store.get_or_create(session_id).d1_identity
 
 

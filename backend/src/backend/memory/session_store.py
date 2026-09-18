@@ -1,7 +1,11 @@
 import time
 from typing import Dict, Optional, List, Any
 from dataclasses import dataclass, field
+from contextvars import ContextVar
 from backend.models.schemas import GuestIdentity, ReservationDetails
+
+# Thread-safe storage for the current session ID in an async request
+current_session_id: ContextVar[Optional[str]] = ContextVar("current_session_id", default=None)
 
 
 @dataclass
@@ -33,7 +37,9 @@ class SessionStore:
         self._default_session_id = "default-session"
 
     def get_or_create(self, session_id: Optional[str] = None) -> SessionState:
-        sid = session_id.strip() if session_id and session_id.strip() else self._default_session_id
+        # Use session_id if provided, otherwise try the context variable, otherwise fallback to default
+        sid = session_id or current_session_id.get() or self._default_session_id
+        sid = sid.strip() if sid and isinstance(sid, str) else self._default_session_id
         if sid not in self._sessions:
             self._sessions[sid] = SessionState(session_id=sid)
         session = self._sessions[sid]
