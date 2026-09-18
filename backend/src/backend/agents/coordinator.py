@@ -2,10 +2,11 @@ import json
 import asyncio
 from datetime import date
 from typing import AsyncGenerator, Optional
-from agent_framework import Agent
+from agent_framework import Agent, AgentSession
 from agent_framework.openai import OpenAIChatCompletionClient
 from backend.config import OLLAMA_BASE_URL, OLLAMA_API_KEY, OLLAMA_CHAT_MODEL
 from backend.memory.session_store import session_store, SessionState
+from agent_framework import SessionStore
 from backend.tools.inventory import ROOM_INVENTORY
 from backend.agents.root_agent import create_root_agent
 from backend.agents.reservation_agent import create_reservation_agent
@@ -33,6 +34,7 @@ class CoordinatorOrchestrator:
         self.root_agent = create_root_agent(self.client)
         self.reservation_agent = create_reservation_agent(self.client)
         self.policy_agent = create_policy_agent(self.client)
+        self.session_store = SessionStore()
 
     def _is_policy_query(self, prompt: str) -> bool:
         lowered = prompt.lower()
@@ -92,6 +94,11 @@ class CoordinatorOrchestrator:
         session = session_store.get_or_create(session_id)
         session.add_message("user", prompt)
 
+        # Load or create framework-specific AgentSession for conversation history
+        agent_session = await self.session_store.get(session_id)
+        if agent_session is None:
+            agent_session = self.root_agent.create_session(session_id=session_id)
+
         # Check for system-wide policy interrupt
         if self._is_policy_query(prompt) and session.active_agent != "policy":
             session.interrupted_from = session.active_agent
@@ -101,15 +108,15 @@ class CoordinatorOrchestrator:
         response_text = ""
 
         if active == "root":
-            res = await self.root_agent.run(prompt)
+            res = await self.root_agent.run(prompt, session=agent_session)
             response_text = res.text
             if session.d1_identity.is_complete() and session.active_agent == "reservation":
                 # Seamlessly transition to reservation agent welcome
-                res2 = await self.reservation_agent.run("Guest identity recorded. Please proceed to ask for check-in date.")
+                res2 = await self.reservation_agent.run("Guest identity recorded. Please proceed to ask for check-in date.", session=agent_session)
                 response_text = f"{response_text}\n\n{res2.text}"
 
         elif active == "reservation":
-            res = await self.reservation_agent.run(prompt)
+            res = await self.reservation_agent.run(prompt, session=agent_session)
             response_text = res.text
             if session.d2_reservation.is_complete():
                 session.active_agent = "completed"
@@ -117,7 +124,7 @@ class CoordinatorOrchestrator:
                 response_text = f"{response_text}\n\n{summary}"
 
         elif active == "policy":
-            res = await self.policy_agent.run(prompt)
+            res = await self.policy_agent.run(prompt, session=agent_session)
             response_text = res.text
             # If guest says they have no more questions or wants to continue
             lower_p = prompt.lower()
@@ -130,10 +137,13 @@ class CoordinatorOrchestrator:
         elif active == "completed":
             # Answer any post-booking policy inquiries or general greetings
             if self._is_policy_query(prompt):
-                res = await self.policy_agent.run(prompt)
+                res = await self.policy_agent.run(prompt, session=agent_session)
                 response_text = res.text
             else:
                 response_text = f"Your reservation is already confirmed! Here is your summary:\n\n{self.format_reservation_summary(session)}"
+
+        # Persist the updated agent session
+        await self.session_store.set(session_id, agent_session)
 
         session.add_message("assistant", response_text)
         return response_text
