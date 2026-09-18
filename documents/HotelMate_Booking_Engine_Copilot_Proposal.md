@@ -60,6 +60,8 @@ A key design detail carried over from the sketches: **the policy-question interr
 
 *(Full Level 0–2 diagrams are maintained in the companion document `hotel_booking_multi_agent_dfd.md`.)*
 
+> **Implementation note:** In the current build, all three data stores above are implemented as **in-memory mock arrays**, not a persistent database. This is sufficient for prototyping the agent orchestration and conversation flow, but it means state does not survive a server restart and nothing is durable or queryable outside the running process. Before Stage 1 can move beyond an internal pilot, each mock array needs to be replaced with a real, tool-backed data store — i.e., each agent should read/write through a defined **tool/API layer** (e.g., `create_reservation`, `get_room_availability`, `update_guest_profile`) rather than touching an array directly. This gives a clean seam to swap in the real database/PMS integration later without changing agent logic, and makes each data store's read/write contract explicit and testable.
+
 ### 4.2 Identified Gap Worth Resolving Before Build
 
 The Reservation Agent's "show available room types + count available" step implies a **Room Inventory data store** that is not yet represented in the architecture diagrams. This should be formalized (source system, schema, refresh cadence) before implementation begins, since room availability accuracy is foundational to guest trust and to preventing overbooking.
@@ -120,7 +122,18 @@ cp .env.example .env   # set VITE_BACKEND_URL
 npm run dev
 ```
 
-### 6.3 Knowledge Base / RAG
+### 6.3 Data Persistence Layer (Current vs. Target)
+
+| Aspect | Current State | Target State |
+|---|---|---|
+| Root Agent Memory | Mock in-memory array | Tool-backed API (e.g., `save_guest_identity`, `get_guest_identity`) over persistent storage |
+| Conversation Memory | Mock in-memory array | Tool-backed API (e.g., `save_booking_field`, `get_booking_state`) over persistent storage |
+| Room Inventory *(not yet formalized — see §4.2)* | Not implemented | Tool-backed API (e.g., `get_room_availability`) once source system is defined |
+| Booking Policy Knowledge Base | Real RAG pipeline (semantic/keyword/hybrid search) | Unchanged — already tool/API-backed |
+
+Standardizing on tools/APIs for every data store — not just the RAG store, which already works this way — is the recommended next step so each agent's data access is auditable, mockable for tests, and swappable for a production database or PMS integration without touching agent logic.
+
+### 6.4 Knowledge Base / RAG
 The Booking Policy Agent is backed by a retrieval-augmented generation (RAG) pipeline over `hotel_booking_policies.md`, supporting semantic, keyword, and hybrid search. This is treated as a distinct data store (D3) with its own ingestion pipeline, separate from conversational memory.
 
 ---
@@ -129,7 +142,7 @@ The Booking Policy Agent is backed by a retrieval-augmented generation (RAG) pip
 
 | Phase | Milestone | Key Deliverables |
 |---|---|---|
-| Phase 0 | Architecture sign-off | Finalized DFDs (L0–L2), resolved Room Inventory question |
+| Phase 0 | Architecture sign-off | Finalized DFDs (L0–L2), resolved Room Inventory question, tool/API layer defined for mock data stores |
 | Phase 1 | Root + Coordinator Agents | Identity capture, agent handoff scaffold |
 | Phase 2 | Reservation Agent | Full booking-detail collection flow, Conversation Memory store |
 | Phase 3 | Booking Policy Agent | RAG pipeline live, system-wide interrupt/return routing |
@@ -142,11 +155,12 @@ The Booking Policy Agent is backed by a retrieval-augmented generation (RAG) pip
 
 ## 8. Risks & Open Questions
 
-1. **Room Inventory source of truth** — not yet defined; needed before the Reservation Agent's availability step can be implemented reliably.
-2. **Interrupt/return state management** — the policy-question interrupt pattern requires careful conversation-state handling across every agent; this should be validated with a shared "return-to-caller" contract early, not per-agent.
-3. **Unclear icon in original sketches** — an unlabeled element near the Root Agent in the source sketches was omitted rather than guessed at (see DFD document's Assumptions section). Worth a quick clarification pass with whoever produced the original sketches — it may represent a specific channel/widget that should be its own external entity.
-4. **Payment gateway selection** — not yet specified; needs a decision to scope the Payment Agent's integration work.
-5. **RAG content ownership** — someone needs to own keeping `hotel_booking_policies.md` accurate and current, since the Booking Policy Agent's answer quality depends entirely on it.
+1. **Mock data stores need to become tool/API-backed** — Root Agent Memory and Conversation Memory currently live as in-memory mock arrays. These need to be replaced with a defined tool/API layer over persistent storage before the system can support real bookings, restart safely, or be tested reliably.
+2. **Room Inventory source of truth** — not yet defined; needed before the Reservation Agent's availability step can be implemented reliably.
+3. **Interrupt/return state management** — the policy-question interrupt pattern requires careful conversation-state handling across every agent; this should be validated with a shared "return-to-caller" contract early, not per-agent.
+4. **Unclear icon in original sketches** — an unlabeled element near the Root Agent in the source sketches was omitted rather than guessed at (see DFD document's Assumptions section). Worth a quick clarification pass with whoever produced the original sketches — it may represent a specific channel/widget that should be its own external entity.
+5. **Payment gateway selection** — not yet specified; needs a decision to scope the Payment Agent's integration work.
+6. **RAG content ownership** — someone needs to own keeping `hotel_booking_policies.md` accurate and current, since the Booking Policy Agent's answer quality depends entirely on it.
 
 ---
 

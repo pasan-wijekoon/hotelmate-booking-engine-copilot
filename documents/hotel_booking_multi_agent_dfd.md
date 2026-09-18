@@ -76,11 +76,29 @@ flowchart TD
 4. Smart Pricing Agent *(marked "will be implemented later")*
 5. Payment Agent
 
+### Agent Tools (Tool/API Layer)
+
+Each agent reads and writes its data store(s) through a defined tool/API, rather than touching the underlying store directly. This keeps agent logic decoupled from how each store is actually implemented (today: in-memory mock arrays; target: persistent, tool-backed storage — see note under D1/D2 in the Data Dictionary).
+
+| Agent | Tools / APIs Called |
+|---|---|
+| **P1 — Root Agent** | `save_guest_identity(name, email, phone)` — write to D1 · `get_guest_identity(guest_id)` — read from D1 |
+| **P2 — Coordinator Agent** | `get_guest_identity(guest_id)` — read D1 · `get_booking_state(session_id)` — read D2 · `route_to_agent(agent_name, context)` — internal handoff tool (no data store) |
+| **P3 — Reservation Agent** | `save_booking_field(session_id, field, value)` — write to D2 · `get_booking_state(session_id)` — read D2 · `get_room_availability(check_in, check_out)` — read Room Inventory *(not yet implemented — see Assumptions)* |
+| **P4 — Booking Policy Agent** | `search_policy_kb(query, mode="hybrid")` — semantic/keyword/hybrid search against D3 |
+| **P5 — Upsell Options Recommend Agent** *(future)* | `get_booking_state(session_id)` — read D2 · `get_upsell_recommendations(booking_context)` — *tool not yet implemented* |
+| **P6 — Smart Pricing Agent** *(future)* | `get_room_availability(check_in, check_out)` — read Room Inventory · `get_dynamic_price(room_type, demand_signals)` — *tool not yet implemented* |
+| **P7 — Payment Agent** | `get_booking_state(session_id)` — read D2 · `create_payment(session_id, amount, method)` — calls the payment gateway · `get_payment_status(payment_id)` |
+
+> Tools shown as *not yet implemented* correspond to gaps already flagged elsewhere in this document (Room Inventory data store) or to agents explicitly marked as future work (P5, P6).
+
 ---
 
 ## Level 2 — P1: Root Agent Process
 
 Collects the guest's identity before handing off to the Coordinator Agent.
+
+**Tools used:** `save_guest_identity(name, email, phone)` on each write step below; `get_guest_identity(guest_id)` when the Coordinator later needs the stored identity.
 
 ```mermaid
 flowchart TD
@@ -104,6 +122,8 @@ flowchart TD
 ## Level 2 — P3: Reservation Agent Process
 
 Collects all booking-specific details. Every field collected is written to the Conversation Memory data store as it goes.
+
+**Tools used:** `save_booking_field(session_id, field, value)` on each write step below; `get_room_availability(check_in, check_out)` at the room-types step (B4); `get_booking_state(session_id)` if a prior step needs to be re-read (e.g., after returning from the Booking Policy Agent).
 
 ```mermaid
 flowchart TD
@@ -143,6 +163,8 @@ flowchart TD
 
 A RAG-backed agent. Answers questions by retrieving from the Booking Policy Knowledge Base (this is the same knowledge base built in the notebook's Steps 2–4 — semantic/keyword/hybrid search over `hotel_booking_policies.md`).
 
+**Tools used:** `search_policy_kb(query, mode="hybrid")` at the RAG lookup step.
+
 ```mermaid
 flowchart TD
     S(["Start"])
@@ -168,6 +190,8 @@ flowchart LR
 
 ## Level 2 — P7: Payment Agent Process
 
+**Tools used:** `get_booking_state(session_id)` to pull the confirmed reservation before charging; `create_payment(session_id, amount, method)` at the "Finalize payment" step; `get_payment_status(payment_id)` to confirm status before notifying.
+
 ```mermaid
 flowchart TD
     S(["Reservation finalized<br/>by Coordinator Agent"])
@@ -187,6 +211,8 @@ flowchart TD
 | **D2 — Conversation Memory** | Check-in/out dates, adult & child counts, child ages, selected room type, meal plan | P3 (Reservation Agent) | P2, P7 (for payment/reservation summary) |
 | **D3 — Booking Policy Knowledge Base** | Vectorized chunks of `hotel_booking_policies.md` (embeddings + text), queried via semantic/keyword/hybrid search | Ingestion pipeline (Step 2 of the RAG notebook) | P4 (Booking Policy Agent) |
 
+> **Implementation note:** D1 and D2 are currently implemented as in-memory mock arrays rather than persistent storage. Agents already access them through the tool names listed above (e.g., `save_guest_identity`, `save_booking_field`) rather than touching the arrays directly, which means swapping the mock arrays for real persistent storage should not require changing any agent logic — only the implementation behind each tool.
+
 | Process | Role |
 |---|---|
 | **P1 — Root Agent** | Entry point; collects identity, then routes to the Coordinator |
@@ -196,6 +222,8 @@ flowchart TD
 | **P5 — Upsell Options Recommend Agent** | *Not yet implemented* — will suggest upgrades/add-ons |
 | **P6 — Smart Pricing Agent** | *Not yet implemented* — will handle dynamic pricing |
 | **P7 — Payment Agent** | Finalizes payment after reservation details are confirmed |
+
+*(See "Agent Tools (Tool/API Layer)" table above the Level 2 diagrams for the specific tool/API each process calls.)*
 
 ---
 
