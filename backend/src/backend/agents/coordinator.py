@@ -6,7 +6,7 @@ from agent_framework import Agent, AgentSession
 from agent_framework.openai import OpenAIChatCompletionClient
 from backend.config import OLLAMA_BASE_URL, OLLAMA_API_KEY, OLLAMA_CHAT_MODEL
 from backend.memory.session_store import session_store, SessionState
-from agent_framework import SessionStore
+
 from backend.tools.inventory import ROOM_INVENTORY
 from backend.agents.root_agent import create_root_agent
 from backend.agents.reservation_agent import create_reservation_agent
@@ -34,7 +34,7 @@ class CoordinatorOrchestrator:
         self.root_agent = create_root_agent(self.client)
         self.reservation_agent = create_reservation_agent(self.client)
         self.policy_agent = create_policy_agent(self.client)
-        self.session_store = SessionStore()
+        # Use the global `session_store` imported from memory.session_store; no per‑instance store needed.
 
     def _is_policy_query(self, prompt: str) -> bool:
         lowered = prompt.lower()
@@ -88,15 +88,19 @@ class CoordinatorOrchestrator:
 
     async def run_turn(self, prompt: str, session_id: Optional[str] = None) -> str:
         """Processes a single conversational turn through the coordinator."""
-        session = session_store.get_or_create(session_id)
+        # Resolve (or create) internal state_id and SessionState for this client session
+        state_id, session = session_store.get_or_create(session_id)
+        # Note: current_session_id is already set by the chat endpoint
 
         if prompt != "INIT_SESSION":
             session.add_message("user", prompt)
 
-        # Load or create framework-specific AgentSession for conversation history
-        agent_session = await self.session_store.get(session_id)
+        # Load or create framework-specific AgentSession for the active agent
+        agent_session = session_store.get_agent_session(state_id, session.active_agent)
         if agent_session is None:
-            agent_session = self.root_agent.create_session(session_id=session_id)
+            # No stored session for this agent yet; create a new one using the root agent (or appropriate agent later)
+            agent_session = self.root_agent.create_session(session_id=state_id)
+
 
         # Check for system-wide policy interrupt
         if self._is_policy_query(prompt) and session.active_agent != "policy":
@@ -143,7 +147,7 @@ class CoordinatorOrchestrator:
                 response_text = f"Your reservation is already confirmed! Here is your summary:\n\n{self.format_reservation_summary(session)}"
 
         # Persist the updated agent session
-        await self.session_store.set(session_id, agent_session)
+        await session_store.set_agent_session(state_id, session.active_agent, agent_session)
 
         session.add_message("assistant", response_text)
         return response_text

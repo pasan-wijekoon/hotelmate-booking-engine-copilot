@@ -45,3 +45,7 @@ CORS_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
+
+# Ensure at least one origin; fall back to allow all in dev mode
+if not CORS_ORIGINS:
+    CORS_ORIGINS = ["*"]

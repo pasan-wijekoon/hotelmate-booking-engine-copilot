@@ -66,19 +66,37 @@ class SessionStore:
     def get_by_state_id(self, state_id: str) -> Optional[SessionState]:
         return self._states.get(state_id)
 
-    def delete_by_state_id(self, state_id: str) -> bool:
-        # Remove mapping from any client session that points to this state_id
-        for client_sid, sid in list(self._session_map.items()):
-            if sid == state_id:
-                del self._session_map[client_sid]
-                break
+    def delete(self, client_session_id: Optional[str] = None) -> bool:
+        """
+        Delete a session using the client-provided session identifier.
+        If ``client_session_id`` is None, the default session is used.
+        Returns True if a session was found and removed, False otherwise.
+        """
+        client_sid = client_session_id or self._default_session_id
+        client_sid = client_sid.strip() if client_sid and isinstance(client_sid, str) else self._default_session_id
+        state_id = self._session_map.get(client_sid)
+        if not state_id:
+            return False
+        # Remove the mapping from client to state
+        del self._session_map[client_sid]
+        # Remove the actual SessionState if it exists
         if state_id in self._states:
             del self._states[state_id]
-            return True
-        return False
+        return True
 
-    def list_state_ids(self) -> List[str]:
-        return list(self._states.keys())
+
+    def get_agent_session(self, state_id: str, agent_name: str) -> Any:
+        """Return the stored AgentFramework session for the given agent, or None."""
+        sess = self.get_by_state_id(state_id)
+        return sess.agent_sessions.get(agent_name) if sess else None
+
+    def set_agent_session(self, state_id: str, agent_name: str, agent_session: Any) -> None:
+        """Persist the AgentFramework session for the given agent within the SessionState."""
+        sess = self.get_by_state_id(state_id)
+        if sess:
+            sess.agent_sessions[agent_name] = agent_session
+        else:
+            raise KeyError(f"State ID {state_id} not found in SessionStore")
 
     @property
     def count(self) -> int:
