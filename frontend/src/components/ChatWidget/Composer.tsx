@@ -57,7 +57,7 @@ export const Composer = forwardRef<HTMLTextAreaElement, Props>(({ disabled, stre
         <textarea
           ref={combinedRef}
           rows={1}
-          placeholder={streaming ? 'HotelMate is replying…' : 'Write a message…'}
+          placeholder={streaming ? 'HotelMate Assistant is replying…' : 'Write a message…'}
           disabled={disabled}
           onInput={autoResize}
           onKeyDown={onKeyDown}

@@ -9,13 +9,25 @@ authors = [
 requires-python = ">=3.14"
 dependencies = [
     "agent-framework>=1.18.0",
+    "chromadb>=0.4.0",
     "fastapi>=0.141.1",
     "python-dotenv>=1.2.3",
+    "rank-bm25>=0.2.2",
     "uvicorn>=0.53.0",
 ]
 
 [project.scripts]
-backend = "backend:main"
+backend = "backend.main:dev"
+dev = "backend.main:dev"
+start = "backend.main:start"
+init-rag = "backend.rag.pipeline:init_cli"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.12.10,<0.13.0"]

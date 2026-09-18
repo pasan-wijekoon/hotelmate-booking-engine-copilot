@@ -68,9 +68,13 @@ Make sure you have the following installed on your machine:
 
 4. **Run the Backend Server**:
    ```bash
-   uv run uvicorn backend.main:app --reload --port 8000
+   # Start with hot-reload (development mode):
+   uv run dev
+
+   # Or in production mode:
+   uv run start
    ```
-   The API documentation will be available at [http://localhost:8000/docs](http://localhost:8000/docs).
+   The API documentation will be available at [http://localhost:5000/docs](http://localhost:5000/docs).
 
 ---
 
@@ -91,9 +95,9 @@ Make sure you have the following installed on your machine:
    ```bash
    cp .env.example .env
    ```
-   Ensure `VITE_BACKEND_URL` points to your backend instance:
+   Ensure `VITE_API_URL` points to your backend instance:
    ```env
-   VITE_BACKEND_URL=http://localhost:8000
+   VITE_API_URL=http://localhost:5000/api/chat
    ```
 
 4. **Run the Development Server**:
@@ -106,7 +110,13 @@ Make sure you have the following installed on your machine:
 
 ## Available Scripts
 
-### Frontend Scripts
+### Backend Scripts (`backend/`)
+- `uv run dev` - Starts the FastAPI backend with hot-reloading on port 5000.
+- `uv run start` - Starts the production ASGI server on port 5000.
+- `uv run init-rag` - Pre-indexes and initializes ChromaDB & BM25 policy knowledge base standalone.
+- `uv run pytest` - Runs the complete backend automated test suite.
+
+### Frontend Scripts (`frontend/`)
 - `npm run dev` - Starts the Vite development server with Hot Module Replacement (HMR).
 - `npm run build` - Runs type-checking with `tsc` and bundles for production into `dist/`.
 - `npm run lint` - Runs Oxlint to quickly analyze and catch linting issues.

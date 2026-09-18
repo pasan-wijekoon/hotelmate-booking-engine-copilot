@@ -1,12 +1,12 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import type { ChatSession } from './types'
-import { PlusIcon, TrashIcon, EditIcon } from './icons'
+import { TrashIcon, EditIcon } from './icons'
 
 type Props = {
   sessions: ChatSession[]
   activeSessionId: string
   onSelectSession: (id: string) => void
-  onNewSession: () => void
+  onNewSession?: () => void
   onDeleteSession: (id: string) => void
   onRenameSession: (id: string, newTitle: string) => void
 }
@@ -28,7 +28,6 @@ export function ConversationsList({
   sessions,
   activeSessionId,
   onSelectSession,
-  onNewSession,
   onDeleteSession,
   onRenameSession,
 }: Props) {
