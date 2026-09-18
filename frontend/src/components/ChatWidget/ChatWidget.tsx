@@ -9,7 +9,7 @@ import type { ConnectionStatus, Message } from './types'
 import { loadConfig } from '../../lib/config'
 import { useChatStream } from '../../hooks/useChatStream'
 import { useChatSessions } from '../../hooks/useChatHistory'
-import { getErrorMessage, ApiError } from '../../lib/api'
+import { getErrorMessage } from '../../lib/api'
 import './ChatWidget.css'
 
 function newId(): string {
@@ -36,7 +36,7 @@ export function ChatWidget() {
     return <ChatWidgetError message={config.error} />
   }
 
-  return <ChatWidgetInner apiUrl={config.apiUrl} timeoutMs={config.timeoutMs} />
+  return <ChatWidgetInner />
 }
 
 function ChatWidgetError({ message }: { message: string }) {
@@ -48,9 +48,7 @@ function ChatWidgetError({ message }: { message: string }) {
   )
 }
 
-type InnerProps = { apiUrl: string; timeoutMs: number }
-
-function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
+function ChatWidgetInner() {
   const [status, setStatus] = useState<ConnectionStatus>('online')
 
   const {
@@ -72,7 +70,7 @@ function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
     messagesRef.current = messages
   }, [messages])
 
-  const { stream, stop, streaming } = useChatStream(apiUrl, timeoutMs)
+  const { stream, stop, streaming, isTextareaDisabled } = useChatStream()
 
   const [isOpen, setIsOpen] = useState(false)
   const [hasUnread, setHasUnread] = useState(false)
@@ -134,7 +132,7 @@ function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
   }, [isOpen, setOpen])
 
   const ready = status === 'online'
-  const composerDisabled = !ready || streaming
+  const composerDisabled = !ready || (streaming && isTextareaDisabled)
   const statusLabel = STATUS_LABEL[status] ?? 'Online'
 
   const handleSend = useCallback(
@@ -188,7 +186,7 @@ function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
         if (!isOpen) setHasUnread(true)
       }
     },
-    [ready, stream, isOpen, apiUrl, updateActiveMessages],
+    [ready, stream, isOpen, updateActiveMessages],
   )
 
   const handleRetry = useCallback(
@@ -206,7 +204,10 @@ function ChatWidgetInner({ apiUrl, timeoutMs }: InnerProps) {
         }
       }
 
-      if (!prompt) return
+      if (!prompt) {
+        console.warn('Retry failed: No preceding user message found to use as prompt.')
+        return
+      }
       handleSend(prompt)
     },
     [handleSend],

@@ -1,6 +1,5 @@
 import { useEffect, useRef, forwardRef, type KeyboardEvent } from 'react'
 import { SendIcon, StopIcon } from './icons'
-import type { React } from 'react'
 
 type Props = {
   disabled: boolean

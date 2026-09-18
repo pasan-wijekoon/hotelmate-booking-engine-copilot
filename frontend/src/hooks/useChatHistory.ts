@@ -18,7 +18,7 @@ function deriveTitle(messages: Message[]): string {
   return clean.length > 34 ? `${clean.slice(0, 34)}…` : clean
 }
 
-function loadSessionsFromStorage(): { sessions: ChatSession[]; activeId: string } {
+function loadSessionsFromStorage(): { sessions: ChatSession[]; activeSessionId: string } {
   try {
     const rawSessions = localStorage.getItem(SESSIONS_STORAGE_KEY)
     if (rawSessions) {
@@ -37,8 +37,8 @@ function loadSessionsFromStorage(): { sessions: ChatSession[]; activeId: string 
         if (validSessions.length > 0) {
           const storedActiveId = localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY)
           const activeExists = validSessions.some((s) => s.id === storedActiveId)
-          const activeId = activeExists && storedActiveId ? storedActiveId : validSessions[0].id
-          return { sessions: validSessions, activeId }
+          const activeSessionId = activeExists && storedActiveId ? storedActiveId : validSessions[0].id
+          return { sessions: validSessions, activeSessionId }
         }
       }
     }
@@ -69,7 +69,7 @@ function loadSessionsFromStorage(): { sessions: ChatSession[]; activeId: string 
             updatedAt: Date.now(),
             messages: legacyMessages,
           }
-          return { sessions: [legacySession], activeId: legacySession.id }
+          return { sessions: [legacySession], activeSessionId: legacySession.id }
         }
       }
     }
@@ -84,7 +84,7 @@ function loadSessionsFromStorage(): { sessions: ChatSession[]; activeId: string 
     updatedAt: Date.now(),
     messages: [],
   }
-  return { sessions: [defaultSession], activeId: defaultSession.id }
+  return { sessions: [defaultSession], activeSessionId: defaultSession.id }
 }
 
 function saveSessionsToStorage(sessions: ChatSession[], activeId: string): void {
