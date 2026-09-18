@@ -168,6 +168,15 @@ export function useChatSessions() {
     })
   }, [])
 
+  const renameSession = useCallback((id: string, newTitle: string) => {
+    setState((prev) => ({
+      ...prev,
+      sessions: prev.sessions.map((s) =>
+        s.id === id ? { ...s, title: newTitle, updatedAt: Date.now() } : s,
+      ),
+    }))
+  }, [])
+
   const updateActiveMessages = useCallback(
     (updateFn: (prevMessages: Message[]) => Message[]) => {
       setState((prev) => {
@@ -225,6 +234,7 @@ export function useChatSessions() {
     createSession,
     switchSession,
     deleteSession,
+    renameSession,
     updateActiveMessages,
     clearCurrentSession,
     clearAllSessions,

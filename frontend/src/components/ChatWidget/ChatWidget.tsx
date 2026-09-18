@@ -58,6 +58,7 @@ function ChatWidgetInner() {
     createSession,
     switchSession,
     deleteSession,
+    renameSession,
     updateActiveMessages,
   } = useChatSessions()
 
@@ -253,6 +254,7 @@ function ChatWidgetInner() {
               onSelectSession={handleSelectSession}
               onNewSession={handleNewChat}
               onDeleteSession={deleteSession}
+              onRenameSession={renameSession}
             />
           ) : (
             <>

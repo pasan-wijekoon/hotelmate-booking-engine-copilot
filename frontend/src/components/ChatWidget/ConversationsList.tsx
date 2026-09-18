@@ -1,5 +1,6 @@
+import { useState, useCallback } from 'react'
 import type { ChatSession } from './types'
-import { PlusIcon, TrashIcon } from './icons'
+import { PlusIcon, TrashIcon, EditIcon } from './icons'
 
 type Props = {
   sessions: ChatSession[]
@@ -7,6 +8,7 @@ type Props = {
   onSelectSession: (id: string) => void
   onNewSession: () => void
   onDeleteSession: (id: string) => void
+  onRenameSession: (id: string, newTitle: string) => void
 }
 
 function formatTime(timestamp: number): string {
@@ -28,7 +30,27 @@ export function ConversationsList({
   onSelectSession,
   onNewSession,
   onDeleteSession,
+  onRenameSession,
 }: Props) {
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+
+  const startEditing = (session: ChatSession) => {
+    setEditingSessionId(session.id)
+    setEditTitle(session.title)
+  }
+
+  const handleSaveRename = (id: string) => {
+    if (editTitle.trim()) {
+      onRenameSession(id, editTitle.trim())
+    }
+    setEditingSessionId(null)
+  }
+
+  const handleCancelRename = () => {
+    setEditingSessionId(null)
+  }
+
   return (
     <div className="chat-widget__sessions-list">
       <div className="chat-widget__sessions-header">
@@ -50,6 +72,7 @@ export function ConversationsList({
         ) : (
           sessions.map((s) => {
             const isCurrent = s.id === activeSessionId
+            const isEditing = editingSessionId === s.id
             const lastMsg = s.messages[s.messages.length - 1]
             const snippet = lastMsg ? lastMsg.content : 'No messages yet'
 
@@ -57,23 +80,54 @@ export function ConversationsList({
               <div
                 key={s.id}
                 className={`chat-widget__session-card${isCurrent ? ' chat-widget__session-card--active' : ''}`}
-                onClick={() => onSelectSession(s.id)}
+                onClick={() => !isEditing && onSelectSession(s.id)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
-                    onSelectSession(s.id)
+                    if (!isEditing) onSelectSession(s.id)
                   }
                 }}
               >
                 <div className="chat-widget__session-content">
                   <div className="chat-widget__session-title-row">
-                    <span className="chat-widget__session-title" title={s.title}>
-                      {s.title}
-                    </span>
-                    <span className="chat-widget__session-time">
-                      {formatTime(s.updatedAt)}
-                    </span>
+                    {isEditing ? (
+                      <div className="chat-widget__session-edit-wrap">
+                        <input
+                          className="chat-widget__session-edit-input"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveRename(s.id)
+                            if (e.key === 'Escape') handleCancelRename()
+                          }}
+                          onBlur={() => handleSaveRename(s.id)}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <span className="chat-widget__session-title" title={s.title}>
+                          {s.title}
+                        </span>
+                        <div className="chat-widget__session-actions">
+                          <button
+                            type="button"
+                            className="chat-widget__session-action-btn"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              startEditing(s)
+                            }}
+                            title="Rename conversation"
+                          >
+                            <EditIcon size={12} />
+                          </button>
+                          <span className="chat-widget__session-time">
+                            {formatTime(s.updatedAt)}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <p className="chat-widget__session-snippet">
                     {snippet}
