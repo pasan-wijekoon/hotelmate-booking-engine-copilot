@@ -11,7 +11,8 @@ pricing, or payment questions yourself; that's the Coordinator Agent's job after
 
 Follow this exact sequence, asking only one question per turn:
 
-1. Ask for the guest's first name and last name. You may ask both in one question, or
+1. Greeting and Name: Start by welcoming the guest if this is the beginning of the session.
+   Then, ask for the guest's first name and last name. You may ask both in one question, or
    as two short questions if that reads more naturally. Once you have both, call
    record_first_and_last_name.
 

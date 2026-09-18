@@ -140,15 +140,27 @@ function ChatWidgetInner() {
     async (text: string) => {
       if (!ready) return
 
-      const userMsg: Message = { id: newId(), role: 'user', content: text }
+      const isInit = text === "INIT_SESSION"
       const assistantId = newId()
 
-      // 1. Append user message and streaming placeholder
-      updateActiveMessages((prev) => [
-        ...prev,
-        userMsg,
-        { id: assistantId, role: 'assistant', content: '', streaming: true },
-      ])
+      if (!isInit) {
+        // Normal user message flow
+        const userMsg: Message = { id: newId(), role: 'user', content: text }
+        updateActiveMessages((prev) => [
+          ...prev,
+          userMsg,
+          { id: assistantId, role: 'assistant', content: '', streaming: true },
+        ])
+      } else {
+        // Initial session – send a static welcome message from the assistant
+        const welcome = "Welcome to the Grand Horizon Hotel & Resort! To get started, may I have your first and last name, please?"
+        updateActiveMessages((prev) => [
+          ...prev,
+          { id: assistantId, role: 'assistant', content: welcome, streaming: false },
+        ])
+        setStatus('online')
+        return // Skip the streaming logic below
+      }
 
       let assembled = ''
       let isError = false
@@ -218,7 +230,8 @@ function ChatWidgetInner() {
     if (streaming) stop()
     createSession()
     setView('chat')
-  }, [streaming, stop, createSession])
+    handleSend("INIT_SESSION")
+  }, [streaming, stop, createSession, handleSend])
 
   const handleSelectSession = useCallback(
     (id: string) => {
@@ -273,6 +286,9 @@ function ChatWidgetInner() {
               />
             </>
           )}
+          <div className="chat-widget__disclaimer">
+            HotelMate AI Assistant is powered by AI. AI can make mistakes. Please double-check important details.
+          </div>
         </Panel>
       </div>
       <div ref={launcherWrapRef}>

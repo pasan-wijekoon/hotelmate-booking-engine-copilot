@@ -72,27 +72,26 @@ class CoordinatorOrchestrator:
         total_estimate = self._calculate_estimated_total(session)
 
         summary = (
-            f"### 🎉 Reservation Details Confirmed\n\n"
-            f"**Guest Information:**\n"
-            f"- **Name:** {d1.first_name} {d1.last_name}\n"
-            f"- **Email:** {d1.email}\n"
-            f"- **Phone:** {d1.phone_number}\n\n"
-            f"**Stay Details:**\n"
-            f"- **Check-in:** {d2.check_in_date}\n"
-            f"- **Check-out:** {d2.check_out_date}\n"
-            f"- **Room Type:** {d2.room_type}\n"
-            f"- **Occupancy:** {d2.adults_count} Adult(s)"
+            f"### ✅ Reservation Confirmed\n\n"
+            f"**Guest:** {d1.first_name} {d1.last_name}\n"
+            f"**Email:** {d1.email}\n"
+            f"**Phone:** {d1.phone_number}\n\n"
+            f"**Stay:** {d2.check_in_date} to {d2.check_out_date}\n"
+            f"**Room:** {d2.room_type}\n"
+            f"**Occupancy:** {d2.adults_count} Adult(s)"
             + (f", {d2.children_count} Child(ren) (Ages: {', '.join(map(str, d2.child_ages))})" if d2.children_count else "")
-            + f"\n- **Meal Plan:** {d2.meal_plan}\n"
-            f"- **Estimated Total:** {total_estimate}\n\n"
-            f"Thank you for choosing Grand Horizon Hotel & Resort! If you have any further questions or policy inquiries, please feel free to ask."
+            + f"\n**Meal Plan:** {d2.meal_plan}\n"
+            f"**Estimated Total:** {total_estimate}\n\n"
+            f"Thank you for choosing Grand Horizon Hotel & Resort!"
         )
         return summary
 
     async def run_turn(self, prompt: str, session_id: Optional[str] = None) -> str:
         """Processes a single conversational turn through the coordinator."""
         session = session_store.get_or_create(session_id)
-        session.add_message("user", prompt)
+
+        if prompt != "INIT_SESSION":
+            session.add_message("user", prompt)
 
         # Load or create framework-specific AgentSession for conversation history
         agent_session = await self.session_store.get(session_id)
@@ -108,7 +107,8 @@ class CoordinatorOrchestrator:
         response_text = ""
 
         if active == "root":
-            res = await self.root_agent.run(prompt, session=agent_session)
+            run_prompt = prompt if prompt != "INIT_SESSION" else "Welcome the user with: 'Hello, I'm Grand Horizon Hotel & Resort, how may I assist you?' and then proceed to start identity collection as per your instructions."
+            res = await self.root_agent.run(run_prompt, session=agent_session)
             response_text = res.text
             if session.d1_identity.is_complete() and session.active_agent == "reservation":
                 # Seamlessly transition to reservation agent welcome
@@ -121,7 +121,7 @@ class CoordinatorOrchestrator:
             if session.d2_reservation.is_complete():
                 session.active_agent = "completed"
                 summary = self.format_reservation_summary(session)
-                response_text = f"{response_text}\n\n{summary}"
+                response_text = summary
 
         elif active == "policy":
             res = await self.policy_agent.run(prompt, session=agent_session)
